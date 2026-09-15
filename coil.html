@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>코일(솔레노이드) 주변의 자기장 3D 모델</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0f172a;
+      font-family: system-ui, -apple-system, "Noto Sans KR", sans-serif;
+      color: #f1f5f9;
+    }
+    body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      grid-template-rows: 100dvh;
+    }
+    #stage {
+      grid-column: 1;
+      min-width: 0;
+      min-height: 0;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .note {
+      position: fixed;
+      left: 20px;
+      bottom: 20px;
+      color: #94a3b8;
+      font-size: 13px;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      pointer-events: none;
+      z-index: 10;
+    }
+    .top-nav {
+      position: fixed;
+      top: 18px;
+      left: 20px;
+      z-index: 10;
+    }
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #38bdf8;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      background: #0284c7;
+      color: #fff;
+    }
+    .panel {
+      grid-column: 2;
+      background: rgba(30, 41, 59, 0.92);
+      backdrop-filter: blur(16px);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.4);
+      z-index: 2;
+    }
+    .panel h1 {
+      font-size: 19px;
+      margin: 0;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.02em;
+    }
+    .panel p.desc {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.55;
+      margin: 0;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .card h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 10px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .toggle-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .toggle-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .toggle-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #0284c7;
+      cursor: pointer;
+    }
+    .btn-action {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: filter 0.2s, transform 0.1s;
+    }
+    .btn-action:hover {
+      filter: brightness(1.15);
+    }
+    .btn-action:active {
+      transform: scale(0.98);
+    }
+    .rule-box {
+      border-left: 3px solid #38bdf8;
+      padding: 10px 12px;
+      background: rgba(56, 189, 248, 0.08);
+      border-radius: 0 8px 8px 0;
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+    .rule-box strong {
+      color: #38bdf8;
+    }
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+    @media (max-width: 900px) {
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1fr) auto;
+      }
+      .panel {
+        grid-column: 1;
+        grid-row: 2;
+        border-left: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        max-height: 48dvh;
+      }
+      .note {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-nav">
+    <a href="index.html" class="nav-btn">⮜ 전동기 시뮬레이션으로 가기</a>
+  </div>
+  <div class="note">🖱 마우스 좌클릭 드래그: 회전 · 우클릭 드래그: 이동 · 휠: 확대/축소</div>
+  <div id="stage"></div>
+
+  <section class="panel">
+    <div>
+      <h1>원통형 코일(솔레노이드) 자기장</h1>
+      <p class="desc" style="margin-top: 6px;">도선이 여러 번 감긴 코일에 전류가 흐를 때 형성되는 3차원 입체 자기장을 관찰해 보세요.</p>
+    </div>
+
+    <div class="card">
+      <h2>💡 과학 원리 (오른손 법칙)</h2>
+      <div class="rule-box">
+        오른손의 <strong>네 손가락</strong>을 코일의 <strong>전류 방향</strong>으로 감아쥘 때, 엄지손가락이 가리키는 방향이 코일 내부의 <strong>자기장 방향(N극)</strong>이 됩니다!
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ 표시 설정</h2>
+      <div class="toggle-group">
+        <label class="toggle-item">
+          <span>자기력선 (3D 입체선)</span>
+          <input type="checkbox" id="toggleLines" checked />
+        </label>
+        <label class="toggle-item">
+          <span>자기장 방향 화살표</span>
+          <input type="checkbox" id="toggleArrows" checked />
+        </label>
+        <label class="toggle-item">
+          <span>전류 방향 화살표</span>
+          <input type="checkbox" id="toggleCurrent" checked />
+        </label>
+        <label class="toggle-item">
+          <span>N · S 자석 극성 표시</span>
+          <input type="checkbox" id="togglePoles" checked />
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>⚡ 전류 제어</h2>
+      <button id="btnReverseCurrent" class="btn-action" type="button">전류 방향 반대로 바꾸기</button>
+    </div>
+
+    <div class="card">
+      <h2>🎨 범례 안내</h2>
+      <div class="legend">
+        <div class="legend-item"><div class="dot" style="background: #e27d34;"></div><span>구리 코일 (도선)</span></div>
+        <div class="legend-item"><div class="dot" style="background: #38bdf8;"></div><span>자기력선 (코일 내부 균일, 외부 순환)</span></div>
+        <div class="legend-item"><div class="dot" style="background: #ef4444;"></div><span>N극 (자기력이 나오는 쪽)</span></div>
+        <div class="legend-item"><div class="dot" style="background: #3b82f6;"></div><span>S극 (자기력이 들어가는 쪽)</span></div>
+        <div class="legend-item"><div class="dot" style="background: #facc15;"></div><span>전류 흐름 화살표</span></div>
+      </div>
+    </div>
+  </section>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // 1. Scene & Camera & Renderer
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0f1d);
+
+    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 100);
+    camera.position.set(0, 4.5, 9.5);
+
+    const stage = document.querySelector('#stage');
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    stage.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 4;
+    controls.maxDistance = 25;
+
+    // 2. 조명
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.0);
+    dirLight1.position.set(5, 10, 7);
+    scene.add(dirLight1);
+
+    const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 1.2);
+    dirLight2.position.set(-6, -4, -5);
+    scene.add(dirLight2);
+
+    // 은은한 바닥 그리드
+    const grid = new THREE.GridHelper(24, 24, 0x1e293b, 0x111827);
+    grid.position.y = -2.8;
+    scene.add(grid);
+
+    // 3. 재질 정의
+    const copperMat = new THREE.MeshStandardMaterial({
+      color: 0xe27d34,
+      roughness: 0.28,
+      metalness: 0.85,
+    });
+    const fieldLineMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.6,
+      roughness: 0.3,
+    });
+    const arrowMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: 0x38bdf8,
+      emissiveIntensity: 0.8,
+      roughness: 0.2,
+    });
+    const currentArrowMat = new THREE.MeshStandardMaterial({
+      color: 0xfacc15,
+      emissive: 0xeab308,
+      emissiveIntensity: 0.9,
+      roughness: 0.2,
+    });
+
+    // 4. 나선형 코일(Solenoid) 생성
+    // 코일 파라미터: X축을 코일의 중심축으로 배치
+    const coilRadius = 1.25;
+    const coilLength = 4.2;
+    const turns = 8;
+    const wireRadius = 0.085;
+
+    class HelixCurve extends THREE.Curve {
+      constructor(radius, length, turns) {
+        super();
+        this.radius = radius;
+        this.length = length;
+        this.turns = turns;
+      }
+      getPoint(t, optionalTarget = new THREE.Vector3()) {
+        const angle = t * Math.PI * 2 * this.turns;
+        const x = (t - 0.5) * this.length;
+        const y = Math.sin(angle) * this.radius;
+        const z = Math.cos(angle) * this.radius;
+        return optionalTarget.set(x, y, z);
+      }
+    }
+
+    const helixCurve = new HelixCurve(coilRadius, coilLength, turns);
+    const coilGeo = new THREE.TubeGeometry(helixCurve, 320, wireRadius, 16, false);
+    const coilMesh = new THREE.Mesh(coilGeo, copperMat);
+    scene.add(coilMesh);
+
+    // 코일 양 끝 리드선(전선 연결 단자)
+    const leadPointsL = [
+      new THREE.Vector3(-coilLength / 2, 0, coilRadius),
+      new THREE.Vector3(-coilLength / 2 - 0.7, -0.6, coilRadius),
+      new THREE.Vector3(-coilLength / 2 - 0.7, -2.4, coilRadius)
+    ];
+    const leadCurveL = new THREE.CatmullRomCurve3(leadPointsL);
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(leadCurveL, 30, wireRadius, 12, false), copperMat));
+
+    const leadPointsR = [
+      new THREE.Vector3(coilLength / 2, 0, coilRadius),
+      new THREE.Vector3(coilLength / 2 + 0.7, -0.6, coilRadius),
+      new THREE.Vector3(coilLength / 2 + 0.7, -2.4, coilRadius)
+    ];
+    const leadCurveR = new THREE.CatmullRomCurve3(leadPointsR);
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(leadCurveR, 30, wireRadius, 12, false), copperMat));
+
+    // 투명 아크릴 보빈(원통 지지대)
+    const bobbinGeo = new THREE.CylinderGeometry(coilRadius * 0.94, coilRadius * 0.94, coilLength * 1.06, 36, 1, true);
+    bobbinGeo.rotateZ(Math.PI / 2);
+    const bobbinMat = new THREE.MeshPhysicalMaterial({
+      color: 0x94a3b8,
+      transparent: true,
+      opacity: 0.16,
+      roughness: 0.1,
+      transmission: 0.9,
+      thickness: 0.3,
+      side: THREE.DoubleSide
+    });
+    scene.add(new THREE.Mesh(bobbinGeo, bobbinMat));
+
+    // 5. 자기력선 그룹 (Magnetic Field Lines)
+    const fieldGroup = new THREE.Group();
+    scene.add(fieldGroup);
+
+    const arrowGroup = new THREE.Group();
+    scene.add(arrowGroup);
+
+    // 3차원 폐곡선(루프) 자기력선 생성
+    // 코일 내부를 통과하여 외부로 돌아오는 물리적 자기력선
+    function createFieldLoop(rInner, rOuter, zAngle) {
+      const points = [];
+      const steps = 80;
+      const halfL = coilLength * 0.55;
+
+      for (let i = 0; i <= steps; i++) {
+        const u = (i / steps) * Math.PI * 2; // 0 to 2PI
+        // 매개변수 곡선: 내부(-halfL to halfL) + 외부 타원형 리턴
+        let x, r;
+        if (u >= 0 && u <= Math.PI) {
+          // 내부 & 전방 개구부: u: 0(코일 우측 N) -> PI(코일 좌측 S)가 아니라
+          // x축을 따라 코일 내부를 직선적으로 통과하는 구간
+          const t = u / Math.PI; // 0 ~ 1
+          x = (0.5 - t) * (halfL * 2.2);
+          r = rInner + 0.15 * Math.sin(t * Math.PI);
+        } else {
+          // 외부 리턴 구간: 코일 밖으로 크게 돌아오는 폐곡선
+          const t = (u - Math.PI) / Math.PI; // 0 ~ 1
+          x = (-0.5 + t) * (halfL * 2.2 + rOuter * 1.4);
+          r = rInner + (rOuter - rInner) * Math.sin(t * Math.PI);
+        }
+
+        const y = r * Math.sin(zAngle);
+        const z = r * Math.cos(zAngle);
+        points.push(new THREE.Vector3(x, y, z));
+      }
+
+      const loopCurve = new THREE.CatmullRomCurve3(points, true, 'centripetal');
+      const tubeGeo = new THREE.TubeGeometry(loopCurve, 80, 0.024, 8, true);
+      const mesh = new THREE.Mesh(tubeGeo, fieldLineMat);
+      fieldGroup.add(mesh);
+
+      // 방향 화살표 콘 생성 (내부 1개, 외부 1개)
+      [0.25, 0.75].forEach(tVal => {
+        const pt = loopCurve.getPointAt(tVal);
+        const tangent = loopCurve.getTangentAt(tVal).normalize();
+        const coneGeo = new THREE.ConeGeometry(0.08, 0.22, 12);
+        coneGeo.rotateX(Math.PI / 2);
+        const coneMesh = new THREE.Mesh(coneGeo, arrowMat);
+        coneMesh.position.copy(pt);
+        coneMesh.lookAt(pt.clone().add(tangent));
+        arrowGroup.add(coneMesh);
+      });
+    }
+
+    // 여러 방위각 및 반경으로 자기력선 배치
+    const angles = [0, Math.PI / 3, (2 * Math.PI) / 3, Math.PI, (4 * Math.PI) / 3, (5 * Math.PI) / 3];
+    angles.forEach(a => {
+      createFieldLoop(0.45, 2.2, a);
+      createFieldLoop(0.85, 3.2, a);
+    });
+
+    // 코일 정중앙 관통 축 자기력선 (직선에 가까운 긴 루프)
+    createFieldLoop(0.05, 4.5, 0);
+    createFieldLoop(0.05, 4.5, Math.PI / 2);
+
+    // 6. 전류 방향 표시 화살표 그룹
+    const currentArrowGroup = new THREE.Group();
+    scene.add(currentArrowGroup);
+
+    function updateCurrentArrows(direction) {
+      while (currentArrowGroup.children.length > 0) {
+        currentArrowGroup.remove(currentArrowGroup.children[0]);
+      }
+      // 각 회전마다 도선 위에 화살표 배치
+      for (let i = 1; i < turns; i++) {
+        const t = (i + 0.5) / turns;
+        const pt = helixCurve.getPointAt(t);
+        const tangent = helixCurve.getTangentAt(t).normalize().multiplyScalar(direction);
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.32, 14), currentArrowMat);
+        cone.geometry.rotateX(Math.PI / 2);
+        cone.position.copy(pt);
+        cone.lookAt(pt.clone().add(tangent));
+        currentArrowGroup.add(cone);
+      }
+    }
+
+    // 7. N극 / S극 3D 스프라이트 라벨
+    function makeLabelSprite(text, bgColor) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = bgColor;
+      ctx.beginPath();
+      ctx.arc(128, 128, 110, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.lineWidth = 14;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 130px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 128, 134);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+      sprite.scale.set(0.9, 0.9, 1);
+      return sprite;
+    }
+
+    const polesGroup = new THREE.Group();
+    scene.add(polesGroup);
+
+    const spriteN = makeLabelSprite('N', '#ef4444');
+    const spriteS = makeLabelSprite('S', '#3b82f6');
+    polesGroup.add(spriteN);
+    polesGroup.add(spriteS);
+
+    let currentDir = 1; // 1: 우측이 N극, -1: 좌측이 N극
+
+    function updatePolarity() {
+      // currentDir = 1 일 때 우측(+X)이 N극, 좌측(-X)이 S극
+      if (currentDir > 0) {
+        spriteN.position.set(coilLength / 2 + 0.65, 0, 0);
+        spriteS.position.set(-coilLength / 2 - 0.65, 0, 0);
+        fieldGroup.rotation.y = 0;
+        arrowGroup.rotation.y = 0;
+      } else {
+        spriteN.position.set(-coilLength / 2 - 0.65, 0, 0);
+        spriteS.position.set(coilLength / 2 + 0.65, 0, 0);
+        fieldGroup.rotation.y = Math.PI;
+        arrowGroup.rotation.y = Math.PI;
+      }
+      updateCurrentArrows(currentDir);
+    }
+    updatePolarity();
+
+    // 8. 컨트롤 이벤트 연결
+    document.querySelector('#toggleLines').addEventListener('change', e => {
+      fieldGroup.visible = e.target.checked;
+    });
+    document.querySelector('#toggleArrows').addEventListener('change', e => {
+      arrowGroup.visible = e.target.checked;
+    });
+    document.querySelector('#toggleCurrent').addEventListener('change', e => {
+      currentArrowGroup.visible = e.target.checked;
+    });
+    document.querySelector('#togglePoles').addEventListener('change', e => {
+      polesGroup.visible = e.target.checked;
+    });
+    document.querySelector('#btnReverseCurrent').addEventListener('click', () => {
+      currentDir *= -1;
+      updatePolarity();
+    });
+
+    // 9. 렌더 루프 (천천히 자동 회전 효과 포함)
+    let clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      // 화살표 미세 맥동/글로우 효과
+      const pulse = 0.5 + 0.2 * Math.sin(clock.getElapsedTime() * 3);
+      arrowMat.emissiveIntensity = pulse * 1.2;
+      currentArrowMat.emissiveIntensity = pulse * 1.5;
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // 10. 리사이즈 대응
+    function onResize() {
+      const w = stage.clientWidth;
+      const h = stage.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener('resize', onResize);
+    onResize();
+  </script>
+</body>
+</html>
