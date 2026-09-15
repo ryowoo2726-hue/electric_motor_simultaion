@@ -220,7 +220,9 @@
     <div class="card">
       <h2>💡 과학 원리 (오른손 법칙)</h2>
       <div class="rule-box">
-        오른손의 <strong>네 손가락</strong>을 코일의 <strong>전류 방향</strong>으로 감아쥘 때, 엄지손가락이 가리키는 방향이 코일 내부의 <strong>자기장 방향(N극)</strong>입니다.
+        오른손의 <strong>네 손가락</strong>을 코일의 <strong>전류 방향</strong>으로 감아쥘 때, 엄지손가락이 가리키는 방향이 코일 내부의 <strong>자기장 방향(N극)</strong>입니다.<br><br>
+        👉 <strong>현재 상태 관찰:</strong><br>
+        코일 앞면(보이는 쪽)에서 전류가 <strong>위로(↑)</strong> 감겨 올라갈 때, 오른손 네 손가락을 위로 감아쥐면 엄지손가락은 <strong>왼쪽(N극)</strong>을 가리킵니다!
       </div>
     </div>
 
@@ -412,27 +414,27 @@
 
     function createSmoothFieldLoop(yScale) {
       const rawControlPoints = [
-        // 내부 통과 구간 (우측 N극을 향해 진행)
-        new THREE.Vector3(-2.2, 0.18 * yScale, 0),
-        new THREE.Vector3(-1.1, 0.22 * yScale, 0),
-        new THREE.Vector3(0.0, 0.24 * yScale, 0),
-        new THREE.Vector3(1.1, 0.22 * yScale, 0),
+        // 1. 코일 내부 통과 구간 (우측 S극에서 좌측 N극을 향해 전진)
         new THREE.Vector3(2.2, 0.18 * yScale, 0),
+        new THREE.Vector3(1.1, 0.22 * yScale, 0),
+        new THREE.Vector3(0.0, 0.24 * yScale, 0),
+        new THREE.Vector3(-1.1, 0.22 * yScale, 0),
+        new THREE.Vector3(-2.2, 0.18 * yScale, 0),
 
-        // N극 출구 분수형 확산
-        new THREE.Vector3(2.9, 0.55 * yScale, 0),
-        new THREE.Vector3(3.6, 1.25 * yScale, 0),
-        new THREE.Vector3(3.3, 2.15 * yScale, 0),
-
-        // 외부 복귀 구간 (상단/하단 원호)
-        new THREE.Vector3(1.9, 2.75 * yScale, 0),
-        new THREE.Vector3(0.0, 2.95 * yScale, 0),
-        new THREE.Vector3(-1.9, 2.75 * yScale, 0),
-
-        // S극 입구 수렴
-        new THREE.Vector3(-3.3, 2.15 * yScale, 0),
+        // 2. N극(좌측) 출구 분수형 확산
+        new THREE.Vector3(-2.9, 0.55 * yScale, 0),
         new THREE.Vector3(-3.6, 1.25 * yScale, 0),
-        new THREE.Vector3(-2.9, 0.55 * yScale, 0)
+        new THREE.Vector3(-3.3, 2.15 * yScale, 0),
+
+        // 3. 외부 복귀 구간 (좌측에서 우측으로 크게 돌아감)
+        new THREE.Vector3(-1.9, 2.75 * yScale, 0),
+        new THREE.Vector3(0.0, 2.95 * yScale, 0),
+        new THREE.Vector3(1.9, 2.75 * yScale, 0),
+
+        // 4. S극(우측) 입구 수렴 (코일 내부로 유입)
+        new THREE.Vector3(3.3, 2.15 * yScale, 0),
+        new THREE.Vector3(3.6, 1.25 * yScale, 0),
+        new THREE.Vector3(2.9, 0.55 * yScale, 0)
       ];
 
       const loopCurve = new THREE.CatmullRomCurve3(rawControlPoints, true, 'centripetal', 0.5);
@@ -441,7 +443,7 @@
       mesh.castShadow = true;
       fieldGroup.add(mesh);
 
-      // 방향 화살표 콘 배치
+      // 방향 화살표 콘 배치 (내부 1개 좌측 방향, 외부 2개 우측 복귀 방향)
       [0.12, 0.52, 0.76].forEach(tVal => {
         const pt = loopCurve.getPointAt(tVal);
         const tangent = loopCurve.getTangentAt(tVal).normalize();
@@ -535,12 +537,14 @@
     spriteMinus.scale.set(0.65, 0.65, 1);
     terminalsGroup.add(spriteMinus);
 
-    let currentDir = 1; // 1: 우측이 N극(+X), -1: 좌측이 N극(-X)
+    let currentDir = 1; // 1: 기본 상태 (좌측 단자 +, 앞쪽 도선 위로 전류 -> 좌측이 N극)
 
     function updatePolarity() {
+      // 오른손 법칙: 코일 앞쪽 도선 전류가 위로 흐를 때 오른손으로 감아쥐면 엄지손가락은 왼쪽(N극)을 가리킵니다!
       if (currentDir > 0) {
-        spriteN.position.set(coilLength / 2 + 0.65, 0, 0);
-        spriteS.position.set(-coilLength / 2 - 0.65, 0, 0);
+        // 좌측이 N극, 우측이 S극
+        spriteN.position.set(-coilLength / 2 - 0.65, 0, 0);
+        spriteS.position.set(coilLength / 2 + 0.65, 0, 0);
         fieldGroup.rotation.y = 0;
         arrowGroup.rotation.y = 0;
 
@@ -548,8 +552,9 @@
         spritePlus.position.set(posL.x, posL.y - 0.45, posL.z);
         spriteMinus.position.set(posR.x, posR.y - 0.45, posR.z);
       } else {
-        spriteN.position.set(-coilLength / 2 - 0.65, 0, 0);
-        spriteS.position.set(coilLength / 2 + 0.65, 0, 0);
+        // 우측이 N극, 좌측이 S극
+        spriteN.position.set(coilLength / 2 + 0.65, 0, 0);
+        spriteS.position.set(-coilLength / 2 - 0.65, 0, 0);
         fieldGroup.rotation.y = Math.PI;
         arrowGroup.rotation.y = Math.PI;
 
