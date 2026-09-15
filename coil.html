@@ -153,8 +153,41 @@
     .btn-action:hover {
       filter: brightness(1.1);
     }
-    .btn-action:active {
-      transform: scale(0.98);
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .color-chip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 4px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: #475569;
+      transition: all 0.2s;
+    }
+    .color-chip:hover {
+      border-color: #0284c7;
+      background: #f0f9ff;
+    }
+    .color-chip.active {
+      border-color: #0284c7;
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    .color-sample {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.15);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .rule-box {
       border-left: 3px solid #0284c7;
@@ -258,9 +291,31 @@
     </div>
 
     <div class="card">
-      <h2>🎨 범례 안내</h2>
+      <h2>🎨 코일 도선 색상</h2>
+      <div class="color-palette">
+        <button class="color-chip active" data-color="0xb91c1c" data-roughness="0.22" data-metalness="0.75" type="button">
+          <div class="color-sample" style="background: #b91c1c;"></div>
+          <span>적동/에나멜</span>
+        </button>
+        <button class="color-chip" data-color="0xca8a04" data-roughness="0.2" data-metalness="0.85" type="button">
+          <div class="color-sample" style="background: #eab308;"></div>
+          <span>골드 황동</span>
+        </button>
+        <button class="color-chip" data-color="0xea580c" data-roughness="0.25" data-metalness="0.8" type="button">
+          <div class="color-sample" style="background: #ea580c;"></div>
+          <span>클래식 구리</span>
+        </button>
+        <button class="color-chip" data-color="0x94a3b8" data-roughness="0.18" data-metalness="0.9" type="button">
+          <div class="color-sample" style="background: #94a3b8;"></div>
+          <span>실버 니켈</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📖 범례 안내</h2>
       <div class="legend">
-        <div class="legend-item"><div class="dot" style="background: #d97736;"></div><span>구리 코일 (도선)</span></div>
+        <div class="legend-item"><div id="coilLegendDot" class="dot" style="background: #b91c1c;"></div><span>코일 (도선)</span></div>
         <div class="legend-item"><div class="dot" style="background: #0284c7;"></div><span>자기력선 (코일 내부 균일, 외부 순환)</span></div>
         <div class="legend-item"><div class="dot" style="background: #dc2626;"></div><span>N극 (자기력이 나오는 쪽) / + 극</span></div>
         <div class="legend-item"><div class="dot" style="background: #2563eb;"></div><span>S극 (자기력이 들어가는 쪽) / − 극</span></div>
@@ -327,8 +382,8 @@
 
     // 3. 재질 정의 (밝은 배경에서 뚜렷한 가시성)
     const copperMat = new THREE.MeshStandardMaterial({
-      color: 0xd97736,
-      roughness: 0.25,
+      color: 0xb91c1c, // 선명한 붉은 에나멜 구리선
+      roughness: 0.22,
       metalness: 0.75,
     });
     const fieldLineMat = new THREE.MeshStandardMaterial({
@@ -590,6 +645,22 @@
     document.querySelector('#btnReverseCurrent').addEventListener('click', () => {
       currentDir *= -1;
       updatePolarity();
+    });
+
+    // 코일 색상 팔레트 선택 이벤트
+    const coilLegendDot = document.querySelector('#coilLegendDot');
+    document.querySelectorAll('.color-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.color-chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const colorHex = parseInt(btn.dataset.color, 16);
+        copperMat.color.setHex(colorHex);
+        copperMat.roughness = parseFloat(btn.dataset.roughness);
+        copperMat.metalness = parseFloat(btn.dataset.metalness);
+        if (coilLegendDot) {
+          coilLegendDot.style.background = '#' + colorHex.toString(16).padStart(6, '0');
+        }
+      });
     });
 
     // 10. 렌더 루프
