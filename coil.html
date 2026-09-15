@@ -232,12 +232,16 @@
           <span>N · S 자석 극성 표시</span>
           <input type="checkbox" id="togglePoles" checked />
         </label>
+        <label class="toggle-item">
+          <span>전원 극성 (+ / −) 표시</span>
+          <input type="checkbox" id="toggleTerminals" checked />
+        </label>
       </div>
     </div>
 
     <div class="card">
       <h2>⚡ 전류 제어</h2>
-      <button id="btnReverseCurrent" class="btn-action" type="button">전류 방향 반대로 바꾸기</button>
+      <button id="btnReverseCurrent" class="btn-action" type="button">전류 방향 반대로 바꾸기 (+ / − 전환)</button>
     </div>
 
     <div class="card">
@@ -248,6 +252,8 @@
         <div class="legend-item"><div class="dot" style="background: #ef4444;"></div><span>N극 (자기력이 나오는 쪽)</span></div>
         <div class="legend-item"><div class="dot" style="background: #3b82f6;"></div><span>S극 (자기력이 들어가는 쪽)</span></div>
         <div class="legend-item"><div class="dot" style="background: #facc15;"></div><span>전류 흐름 화살표</span></div>
+        <div class="legend-item"><div class="dot" style="background: #dc2626;"></div><span>+ 극 (전류가 나오는 단자)</span></div>
+        <div class="legend-item"><div class="dot" style="background: #2563eb;"></div><span>− 극 (전류가 들어가는 단자)</span></div>
       </div>
     </div>
   </section>
@@ -507,6 +513,32 @@
     polesGroup.add(spriteN);
     polesGroup.add(spriteS);
 
+    // 8. 코일 양 끝 전원 단자 (+, −) 표시 그룹
+    const terminalsGroup = new THREE.Group();
+    scene.add(terminalsGroup);
+
+    const posL = new THREE.Vector3(-coilLength / 2 - 0.7, -2.4, coilRadius);
+    const posR = new THREE.Vector3(coilLength / 2 + 0.7, -2.4, coilRadius);
+
+    // 단자 금속 캡
+    const termCapMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.2 });
+    const capL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 14), termCapMat);
+    capL.position.copy(posL);
+    terminalsGroup.add(capL);
+
+    const capR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 14), termCapMat);
+    capR.position.copy(posR);
+    terminalsGroup.add(capR);
+
+    // 단자 극성 (+, −) 스프라이트
+    const spritePlus = makeLabelSprite('+', '#dc2626');
+    spritePlus.scale.set(0.65, 0.65, 1);
+    terminalsGroup.add(spritePlus);
+
+    const spriteMinus = makeLabelSprite('−', '#2563eb');
+    spriteMinus.scale.set(0.65, 0.65, 1);
+    terminalsGroup.add(spriteMinus);
+
     let currentDir = 1; // 1: 우측이 N극, -1: 좌측이 N극
 
     function updatePolarity() {
@@ -516,17 +548,25 @@
         spriteS.position.set(-coilLength / 2 - 0.65, 0, 0);
         fieldGroup.rotation.y = 0;
         arrowGroup.rotation.y = 0;
+
+        // 좌측 단자가 +, 우측 단자가 −
+        spritePlus.position.set(posL.x, posL.y - 0.45, posL.z);
+        spriteMinus.position.set(posR.x, posR.y - 0.45, posR.z);
       } else {
         spriteN.position.set(-coilLength / 2 - 0.65, 0, 0);
         spriteS.position.set(coilLength / 2 + 0.65, 0, 0);
         fieldGroup.rotation.y = Math.PI;
         arrowGroup.rotation.y = Math.PI;
+
+        // 좌측 단자가 −, 우측 단자가 +
+        spritePlus.position.set(posR.x, posR.y - 0.45, posR.z);
+        spriteMinus.position.set(posL.x, posL.y - 0.45, posL.z);
       }
       updateCurrentArrows(currentDir);
     }
     updatePolarity();
 
-    // 8. 컨트롤 이벤트 연결
+    // 9. 컨트롤 이벤트 연결
     document.querySelector('#toggleLines').addEventListener('change', e => {
       fieldGroup.visible = e.target.checked;
     });
@@ -539,12 +579,15 @@
     document.querySelector('#togglePoles').addEventListener('change', e => {
       polesGroup.visible = e.target.checked;
     });
+    document.querySelector('#toggleTerminals').addEventListener('change', e => {
+      terminalsGroup.visible = e.target.checked;
+    });
     document.querySelector('#btnReverseCurrent').addEventListener('click', () => {
       currentDir *= -1;
       updatePolarity();
     });
 
-    // 9. 렌더 루프 (천천히 자동 회전 효과 포함)
+    // 10. 렌더 루프 (천천히 자동 회전 효과 포함)
     let clock = new THREE.Clock();
     function animate() {
       requestAnimationFrame(animate);
