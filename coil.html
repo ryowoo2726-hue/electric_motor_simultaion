@@ -338,51 +338,53 @@
     const turns = 8;
     const wireRadius = 0.085;
 
-    class HelixCurve extends THREE.Curve {
-      constructor(radius, length, turns) {
-        super();
-        this.radius = radius;
-        this.length = length;
-        this.turns = turns;
-      }
-      getPoint(t, optionalTarget = new THREE.Vector3()) {
-        const angle = t * Math.PI * 2 * this.turns;
-        const x = (t - 0.5) * this.length;
-        const y = Math.sin(angle) * this.radius;
-        const z = Math.cos(angle) * this.radius;
-        return optionalTarget.set(x, y, z);
-      }
+    // 4. 나선형 코일(Solenoid)과 리드선 - 일체형 부드러운 곡선 생성
+    const coilRadius = 1.25;
+    const coilLength = 4.2;
+    const turns = 7;
+    const wireRadius = 0.088;
+
+    const fullWirePoints = [];
+    const posL = new THREE.Vector3(-coilLength / 2 - 0.75, -2.4, coilRadius);
+    const posR = new THREE.Vector3(coilLength / 2 + 0.75, -2.4, coilRadius);
+
+    // 좌측 단자 -> 코일 나선 입구로 부드럽게 이어지는 곡선
+    fullWirePoints.push(posL.clone());
+    fullWirePoints.push(new THREE.Vector3(-coilLength / 2 - 0.75, -1.8, coilRadius));
+    fullWirePoints.push(new THREE.Vector3(-coilLength / 2 - 0.65, -1.1, coilRadius));
+    fullWirePoints.push(new THREE.Vector3(-coilLength / 2 - 0.45, -0.5, coilRadius));
+    fullWirePoints.push(new THREE.Vector3(-coilLength / 2 - 0.2, -0.12, coilRadius * 0.98));
+
+    // 나선 본체 (7회전)
+    const helixSteps = 280;
+    for (let i = 0; i <= helixSteps; i++) {
+      const t = i / helixSteps;
+      const angle = t * Math.PI * 2 * turns;
+      const x = (t - 0.5) * coilLength;
+      const y = Math.sin(angle) * coilRadius;
+      const z = Math.cos(angle) * coilRadius;
+      fullWirePoints.push(new THREE.Vector3(x, y, z));
     }
 
-    const helixCurve = new HelixCurve(coilRadius, coilLength, turns);
-    const coilGeo = new THREE.TubeGeometry(helixCurve, 320, wireRadius, 16, false);
+    // 코일 나선 출구 -> 우측 단자로 부드럽게 이어지는 곡선
+    fullWirePoints.push(new THREE.Vector3(coilLength / 2 + 0.2, 0.12, coilRadius * 0.98));
+    fullWirePoints.push(new THREE.Vector3(coilLength / 2 + 0.45, -0.5, coilRadius));
+    fullWirePoints.push(new THREE.Vector3(coilLength / 2 + 0.65, -1.1, coilRadius));
+    fullWirePoints.push(new THREE.Vector3(coilLength / 2 + 0.75, -1.8, coilRadius));
+    fullWirePoints.push(posR.clone());
+
+    const continuousWireCurve = new THREE.CatmullRomCurve3(fullWirePoints, false, 'centripetal', 0.5);
+    const coilGeo = new THREE.TubeGeometry(continuousWireCurve, 380, wireRadius, 16, false);
     const coilMesh = new THREE.Mesh(coilGeo, copperMat);
     scene.add(coilMesh);
 
-    // 코일 양 끝 리드선(전선 연결 단자)
-    const leadPointsL = [
-      new THREE.Vector3(-coilLength / 2, 0, coilRadius),
-      new THREE.Vector3(-coilLength / 2 - 0.7, -0.6, coilRadius),
-      new THREE.Vector3(-coilLength / 2 - 0.7, -2.4, coilRadius)
-    ];
-    const leadCurveL = new THREE.CatmullRomCurve3(leadPointsL);
-    scene.add(new THREE.Mesh(new THREE.TubeGeometry(leadCurveL, 30, wireRadius, 12, false), copperMat));
-
-    const leadPointsR = [
-      new THREE.Vector3(coilLength / 2, 0, coilRadius),
-      new THREE.Vector3(coilLength / 2 + 0.7, -0.6, coilRadius),
-      new THREE.Vector3(coilLength / 2 + 0.7, -2.4, coilRadius)
-    ];
-    const leadCurveR = new THREE.CatmullRomCurve3(leadPointsR);
-    scene.add(new THREE.Mesh(new THREE.TubeGeometry(leadCurveR, 30, wireRadius, 12, false), copperMat));
-
-    // 투명 아크릴 보빈(원통 지지대)
-    const bobbinGeo = new THREE.CylinderGeometry(coilRadius * 0.94, coilRadius * 0.94, coilLength * 1.06, 36, 1, true);
+    // 투명 아크릴 보빈(원통 지지대) - 코일 내부 구조를 받쳐주는 지지체
+    const bobbinGeo = new THREE.CylinderGeometry(coilRadius * 0.93, coilRadius * 0.93, coilLength * 1.05, 40, 1, true);
     bobbinGeo.rotateZ(Math.PI / 2);
     const bobbinMat = new THREE.MeshPhysicalMaterial({
       color: 0x94a3b8,
       transparent: true,
-      opacity: 0.16,
+      opacity: 0.14,
       roughness: 0.1,
       transmission: 0.9,
       thickness: 0.3,
@@ -390,52 +392,49 @@
     });
     scene.add(new THREE.Mesh(bobbinGeo, bobbinMat));
 
-    // 5. 자기력선 그룹 (Magnetic Field Lines)
+    // 5. 자기력선 그룹 (Magnetic Field Lines) - 상/하 2개의 유려한 대표 폐곡선 루프
     const fieldGroup = new THREE.Group();
     scene.add(fieldGroup);
 
     const arrowGroup = new THREE.Group();
     scene.add(arrowGroup);
 
-    // 3차원 폐곡선(루프) 자기력선 생성
-    // 코일 내부를 통과하여 외부로 돌아오는 물리적 자기력선
-    function createFieldLoop(rInner, rOuter, zAngle) {
-      const points = [];
-      const steps = 80;
-      const halfL = coilLength * 0.55;
+    function createSmoothFieldLoop(yScale) {
+      // yScale = 1: 상단 루프, yScale = -1: 하단 루프
+      const rawControlPoints = [
+        // 내부 통과 구간 (우측 N극을 향해 진행)
+        new THREE.Vector3(-2.2, 0.18 * yScale, 0),
+        new THREE.Vector3(-1.1, 0.22 * yScale, 0),
+        new THREE.Vector3(0.0, 0.24 * yScale, 0),
+        new THREE.Vector3(1.1, 0.22 * yScale, 0),
+        new THREE.Vector3(2.2, 0.18 * yScale, 0),
 
-      for (let i = 0; i <= steps; i++) {
-        const u = (i / steps) * Math.PI * 2; // 0 to 2PI
-        // 매개변수 곡선: 내부(-halfL to halfL) + 외부 타원형 리턴
-        let x, r;
-        if (u >= 0 && u <= Math.PI) {
-          // 내부 & 전방 개구부: u: 0(코일 우측 N) -> PI(코일 좌측 S)가 아니라
-          // x축을 따라 코일 내부를 직선적으로 통과하는 구간
-          const t = u / Math.PI; // 0 ~ 1
-          x = (0.5 - t) * (halfL * 2.2);
-          r = rInner + 0.15 * Math.sin(t * Math.PI);
-        } else {
-          // 외부 리턴 구간: 코일 밖으로 크게 돌아오는 폐곡선
-          const t = (u - Math.PI) / Math.PI; // 0 ~ 1
-          x = (-0.5 + t) * (halfL * 2.2 + rOuter * 1.4);
-          r = rInner + (rOuter - rInner) * Math.sin(t * Math.PI);
-        }
+        // N극 출구 분수형 확산
+        new THREE.Vector3(2.9, 0.55 * yScale, 0),
+        new THREE.Vector3(3.6, 1.25 * yScale, 0),
+        new THREE.Vector3(3.3, 2.15 * yScale, 0),
 
-        const y = r * Math.sin(zAngle);
-        const z = r * Math.cos(zAngle);
-        points.push(new THREE.Vector3(x, y, z));
-      }
+        // 외부 복귀 구간 (상단/하단 원호)
+        new THREE.Vector3(1.9, 2.75 * yScale, 0),
+        new THREE.Vector3(0.0, 2.95 * yScale, 0),
+        new THREE.Vector3(-1.9, 2.75 * yScale, 0),
 
-      const loopCurve = new THREE.CatmullRomCurve3(points, true, 'centripetal');
-      const tubeGeo = new THREE.TubeGeometry(loopCurve, 80, 0.024, 8, true);
+        // S극 입구 수렴
+        new THREE.Vector3(-3.3, 2.15 * yScale, 0),
+        new THREE.Vector3(-3.6, 1.25 * yScale, 0),
+        new THREE.Vector3(-2.9, 0.55 * yScale, 0)
+      ];
+
+      const loopCurve = new THREE.CatmullRomCurve3(rawControlPoints, true, 'centripetal', 0.5);
+      const tubeGeo = new THREE.TubeGeometry(loopCurve, 120, 0.034, 10, true);
       const mesh = new THREE.Mesh(tubeGeo, fieldLineMat);
       fieldGroup.add(mesh);
 
-      // 방향 화살표 콘 생성 (내부 1개, 외부 1개)
-      [0.25, 0.75].forEach(tVal => {
+      // 방향 화살표 콘 배치 (내부 1개, 외부 2개)
+      [0.12, 0.52, 0.76].forEach(tVal => {
         const pt = loopCurve.getPointAt(tVal);
         const tangent = loopCurve.getTangentAt(tVal).normalize();
-        const coneGeo = new THREE.ConeGeometry(0.08, 0.22, 12);
+        const coneGeo = new THREE.ConeGeometry(0.10, 0.28, 14);
         coneGeo.rotateX(Math.PI / 2);
         const coneMesh = new THREE.Mesh(coneGeo, arrowMat);
         coneMesh.position.copy(pt);
@@ -444,16 +443,9 @@
       });
     }
 
-    // 여러 방위각 및 반경으로 자기력선 배치
-    const angles = [0, Math.PI / 3, (2 * Math.PI) / 3, Math.PI, (4 * Math.PI) / 3, (5 * Math.PI) / 3];
-    angles.forEach(a => {
-      createFieldLoop(0.45, 2.2, a);
-      createFieldLoop(0.85, 3.2, a);
-    });
-
-    // 코일 정중앙 관통 축 자기력선 (직선에 가까운 긴 루프)
-    createFieldLoop(0.05, 4.5, 0);
-    createFieldLoop(0.05, 4.5, Math.PI / 2);
+    // 학생들의 시각적 이해를 위해 가장 이상적인 2개의 자기력선(상단 1개, 하단 1개) 생성
+    createSmoothFieldLoop(1.0);  // 상단 루프
+    createSmoothFieldLoop(-1.0); // 하단 루프
 
     // 6. 전류 방향 표시 화살표 그룹
     const currentArrowGroup = new THREE.Group();
@@ -463,12 +455,13 @@
       while (currentArrowGroup.children.length > 0) {
         currentArrowGroup.remove(currentArrowGroup.children[0]);
       }
-      // 각 회전마다 도선 위에 화살표 배치
+      // 나선 구간의 각 턴마다 도선 위에 깔끔한 화살표 배치
       for (let i = 1; i < turns; i++) {
-        const t = (i + 0.5) / turns;
-        const pt = helixCurve.getPointAt(t);
-        const tangent = helixCurve.getTangentAt(t).normalize().multiplyScalar(direction);
-        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.32, 14), currentArrowMat);
+        // 전체 곡선 중 나선 구간 비율(약 0.08 ~ 0.92) 내에서 계산
+        const tGlobal = 0.08 + (i / turns) * 0.84;
+        const pt = continuousWireCurve.getPointAt(tGlobal);
+        const tangent = continuousWireCurve.getTangentAt(tGlobal).normalize().multiplyScalar(direction);
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.34, 14), currentArrowMat);
         cone.geometry.rotateX(Math.PI / 2);
         cone.position.copy(pt);
         cone.lookAt(pt.clone().add(tangent));
@@ -516,9 +509,6 @@
     // 8. 코일 양 끝 전원 단자 (+, −) 표시 그룹
     const terminalsGroup = new THREE.Group();
     scene.add(terminalsGroup);
-
-    const posL = new THREE.Vector3(-coilLength / 2 - 0.7, -2.4, coilRadius);
-    const posR = new THREE.Vector3(coilLength / 2 + 0.7, -2.4, coilRadius);
 
     // 단자 금속 캡
     const termCapMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.2 });
