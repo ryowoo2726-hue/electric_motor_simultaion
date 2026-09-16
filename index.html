@@ -70,6 +70,9 @@
     // 정류자 → 사각 코일 → 정류자를 하나의 끊김 없는 구리 도선으로 연결합니다.
     const armaturePoints=[new THREE.Vector3(-.26,-.91,0),new THREE.Vector3(-.78,-.37,0),new THREE.Vector3(-1.65,-.02,0),new THREE.Vector3(-1.65,1.82,0),new THREE.Vector3(1.65,1.82,0),new THREE.Vector3(1.65,-.02,0),new THREE.Vector3(.78,-.37,0),new THREE.Vector3(.26,-.91,0)];
     const armatureCurve=new THREE.CatmullRomCurve3(armaturePoints,false,'centripetal');const armatureWire=new THREE.Mesh(new THREE.TubeGeometry(armatureCurve,120,.105,12,false),copper);armatureWire.castShadow=true;rotor.add(armatureWire);
+    function badge(t,bg){const c=document.createElement('canvas');c.width=160;c.height=160;const x=c.getContext('2d');x.fillStyle=bg;x.beginPath();x.arc(80,80,72,0,Math.PI*2);x.fill();x.lineWidth=10;x.strokeStyle='#ffffff';x.stroke();x.fillStyle='#ffffff';x.font='bold 92px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(t,80,86);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));s.scale.set(.65,.65,1);return s;}
+    const labelA=badge('A','#ea580c');labelA.position.set(-1.65,.9,.22);rotor.add(labelA);
+    const labelB=badge('B','#8b5cf6');labelB.position.set(1.65,.9,.22);rotor.add(labelB);
     const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,4.25,24),steel);shaft.position.set(0,-.12,0);shaft.rotation.set(0,0,0);shaft.castShadow=true;rotor.add(shaft);
     const hub=new THREE.Mesh(new THREE.CylinderGeometry(.31,.31,.4,28),steel);hub.position.set(0,.9,0);hub.rotation.set(0,0,0);hub.castShadow=true;rotor.add(hub);
 

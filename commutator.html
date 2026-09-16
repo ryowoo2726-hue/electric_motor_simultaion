@@ -300,7 +300,8 @@
 
   <footer>
     <div class="footer-left">
-      <div class="legend-item"><div class="dot" style="background: #e27d34;"></div><span>코일 도선 (구리)</span></div>
+      <div class="legend-item"><div class="dot" style="background: #ea580c;"></div><span>도선 A</span></div>
+      <div class="legend-item"><div class="dot" style="background: #8b5cf6;"></div><span>도선 B</span></div>
       <div class="legend-item"><div class="dot" style="background: #10b981;"></div><span>받는 힘 (전자기력 F 화살표)</span></div>
       <div class="legend-item"><div class="dot" style="background: #ef4444;"></div><span>N극</span></div>
       <div class="legend-item"><div class="dot" style="background: #3b82f6;"></div><span>S극</span></div>
@@ -456,6 +457,39 @@
       const armWire = new THREE.Mesh(new THREE.TubeGeometry(armCurve, 100, 0.10, 12, false), copperMat);
       armWire.castShadow = true;
       rotor.add(armWire);
+
+      // 코일 좌우 도선에 함께 회전하는 A, B 라벨 뱃지 추가
+      function makeWireBadge(letter, bgColor) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 160;
+        canvas.height = 160;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.arc(80, 80, 72, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 92px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(letter, 80, 86);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+        sprite.scale.set(0.65, 0.65, 1);
+        return sprite;
+      }
+
+      const labelA = makeWireBadge('A', '#ea580c'); // 왼쪽 도선 A (오렌지/주황 뱃지)
+      labelA.position.set(-1.65, 0.9, 0.22);
+      rotor.add(labelA);
+
+      const labelB = makeWireBadge('B', '#8b5cf6'); // 오른쪽 도선 B (보라 뱃지)
+      labelB.position.set(1.65, 0.9, 0.22);
+      rotor.add(labelB);
 
       // 중심 샤프트 & 허브
       const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 4.2, 20), steelMat);
